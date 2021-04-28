@@ -2,7 +2,7 @@
 
 <br>
 
-[![Github Workflow](https://github.com/numberninecms/installer/workflows/Installer builder/badge.svg)](https://github.com/numberninecms/installer/actions)
+[![Github Workflow](https://github.com/numberninecms/installer/workflows/Installer%20builder/badge.svg)](https://github.com/numberninecms/installer/actions)
 
 # Documentation
 Visit https://numberninecms.github.io/ for user and developer documentation.
