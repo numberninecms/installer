@@ -1,0 +1,8 @@
+/.idea
+/.github
+/assets/
+/build/*
+!/build/docker-entrypoint.sh
+.git
+.dockerignore
+NumberNine512_slogan.png

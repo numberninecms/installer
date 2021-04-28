@@ -1,0 +1,74 @@
+name: Installer builder
+
+on:
+    push:
+        branches:
+            - master
+    schedule:
+        -   cron: '0 23 * * 4' # Once a week at 23:00 on Monday
+
+jobs:
+    build:
+        name: Build installer
+
+        runs-on: ubuntu-20.04
+
+        strategy:
+            matrix:
+                php: [ 8.0 ]
+
+        steps:
+            -   uses: actions/checkout@v2
+
+            -   uses: FranzDiebold/github-env-vars-action@v2
+
+            -   name: Setup PHP
+                id: setup-php
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: ${{ matrix.php }}
+                    extensions: dom, curl, libxml, mbstring, zip, redis
+                    tools: composer:v2
+                    coverage: none
+
+            -   name: Install project
+                run: |
+                    rm LICENSE
+                    rm README.md
+                    export SYMFONY_ENDPOINT=https://flex.symfony.com/r/github.com/symfony/recipes-contrib/1049
+                    composer create-project symfony/website-skeleton newproject
+                    cd newproject
+                    cp -Rp . ../
+                    cd ..
+                    rm -rf newproject
+                    composer config extra.symfony.allow-contrib true
+                    composer require numberninecms/numbernine --ignore-platform-reqs
+
+            -   name: Install latest admin assets
+                run: |
+                    rm -rf public/admin
+                    curl -s https://api.github.com/repos/numberninecms/admin/releases/latest \
+                        | jq -r '.assets | .[].browser_download_url' \
+                        | wget -q -O numberninecms-admin.zip -i -
+                    unzip -q numberninecms-admin.zip -d ./public/admin/
+                    rm numberninecms-admin.zip
+
+            -   name: Create docker-compose.yml and .env.local file
+                run: |
+                    mv ./docker/docker-compose.yaml ./docker-compose.yml
+                    echo "APP_NAME=numbernine" > .env.local
+                    echo "DATABASE_URL=mysql://user:user@mysql:3306/numbernine_app?serverVersion=5.7" >> .env.local
+                    echo "REDIS_URL=redis://redis:6379" >> .env.local
+                    echo "MAILER_DSN=smtp://maildev:25" >> .env.local
+
+            -   name: Install redis bundle
+                run: |
+                    composer require numberninecms/redis --no-scripts --ignore-platform-reqs
+                    php bin/console cache:clear
+                    composer dumpautoload
+
+            -   name: Build Docker image
+                run: |
+                    echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+                    docker build --no-cache -t numberninecms/installer:latest -f ./build/Dockerfile .
+                    docker push numberninecms/installer
