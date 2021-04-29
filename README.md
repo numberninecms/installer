@@ -7,12 +7,15 @@
 # Documentation
 Visit https://numberninecms.github.io/ for user and developer documentation.
 
-This is a Docker installer builder for NumberNine CMS. It creates an up-to-date NumberNine project with a full docker environment.
+This repository builds a Docker installer for NumberNine CMS.
+
+The generated installer creates an up-to-date NumberNine project with a full
+Docker environment.
 
 To create a new NumberNine project, simply run this one-liner:
 
 ```bash
-docker run --rm -t -e HOST_PWD=$PWD -v $PWD:/srv/app \
+docker run --rm --pull=always -t -e HOST_PWD=$PWD -v $PWD:/srv/app \
     -v /var/run/docker.sock:/var/run/docker.sock \
     numberninecms/installer myproject
 ```
