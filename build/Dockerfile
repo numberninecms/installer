@@ -1,6 +1,6 @@
 FROM alpine
 
-RUN apk add sudo openssl bash ncurses
+RUN apk add --no-cache --upgrade sudo openssl bash ncurses grep nmap
 
 COPY --from=docker:latest /usr/local/bin/docker /usr/bin/docker
 COPY --from=docker/compose:latest /usr/local/bin/docker-compose /usr/bin/docker-compose
