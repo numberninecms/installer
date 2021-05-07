@@ -45,7 +45,13 @@ jobs:
                     rm -rf newproject
                     composer config extra.symfony.allow-contrib true
                     composer require numberninecms/numbernine --ignore-platform-reqs
-
+            
+            -   name: "Check file existence"
+                uses: andstor/file-existence-action@v1
+                with:
+                    files: "docker-compose.yml, docker/"
+                    allow_failure: true
+            
             -   name: Install latest admin assets
                 run: |
                     rm -rf public/admin
@@ -55,9 +61,8 @@ jobs:
                     unzip -q numberninecms-admin.zip -d ./public/admin/
                     rm numberninecms-admin.zip
 
-            -   name: Create docker-compose.yml and .env.local file
+            -   name: Create .env.local file
                 run: |
-                    mv ./docker/docker-compose.yaml ./docker-compose.yml
                     echo "APP_NAME=numbernine" > .env.local
                     echo "DATABASE_URL=mysql://user:user@mysql:3306/numbernine_app?serverVersion=5.7" >> .env.local
                     echo "REDIS_URL=redis://redis:6379" >> .env.local
