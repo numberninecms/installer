@@ -44,22 +44,15 @@ jobs:
                     cd ..
                     rm -rf newproject
                     composer config extra.symfony.allow-contrib true
+                    composer config minimum-stability dev
+                    composer config prefer-stable true
                     composer require numberninecms/numbernine --ignore-platform-reqs
-            
+
             -   name: "Check file existence"
                 uses: andstor/file-existence-action@v1
                 with:
                     files: "docker-compose.yml, docker/"
                     allow_failure: true
-            
-            -   name: Install latest admin assets
-                run: |
-                    rm -rf public/admin
-                    curl -s https://api.github.com/repos/numberninecms/admin/releases/latest \
-                        | jq -r '.assets | .[].browser_download_url' \
-                        | wget -q -O numberninecms-admin.zip -i -
-                    unzip -q numberninecms-admin.zip -d ./public/admin/
-                    rm numberninecms-admin.zip
 
             -   name: Create .env.local file
                 run: |
