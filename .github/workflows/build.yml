@@ -3,9 +3,12 @@ name: Installer builder
 on:
     push:
         branches:
-            - master
+            - '**'
         paths-ignore:
             - '**/README.md'
+    pull_request:
+        branches:
+            - master
     schedule:
         -   cron: '0 23 * * 4' # Once a week at 23:00 on Thursday
 
@@ -46,7 +49,7 @@ jobs:
                     composer config minimum-stability dev
                     composer config prefer-stable true
                     composer require --dev symfony/maker-bundle:dev-main
-                    composer require numberninecms/numbernine:^0.2 --ignore-platform-reqs
+                    composer require numberninecms/numbernine:^0.2 --ignore-platform-reqs --with-all-dependencies
 
             -   name: "Check file existence"
                 uses: andstor/file-existence-action@v1
@@ -63,15 +66,19 @@ jobs:
 
             -   name: Install redis bundle
                 run: |
-                    composer require numberninecms/redis --no-scripts --ignore-platform-reqs
+                    composer require numberninecms/redis --no-scripts --ignore-platform-reqs --with-all-dependencies
                     php bin/console cache:clear
                     composer dumpautoload
 
             -   name: Build Docker image
+                run: docker build --no-cache -t numberninecms/installer:0.2 -t numberninecms/installer:latest -f ./build/Dockerfile .
+
+            -   name: Push Docker image
+                if: github.ref == 'refs/heads/master'
                 run: |
                     echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-                    docker build --no-cache -t numberninecms/installer:0.2 -t numberninecms/installer:latest -f ./build/Dockerfile .
-                    docker push numberninecms/installer
+                    docker push numberninecms/installer:0.2
+                    docker push numberninecms/installer:latest
 
     build_0_3:
         name: Build installer 0.3.x
@@ -108,7 +115,7 @@ jobs:
                     composer config extra.symfony.allow-contrib true
                     composer config minimum-stability dev
                     composer config prefer-stable true
-                    composer require numberninecms/cms:^0.3 numberninecms/chapterone:^0.3 --ignore-platform-reqs
+                    composer require numberninecms/cms:^0.3 numberninecms/chapterone:^0.3 --ignore-platform-reqs --with-all-dependencies
 
             -   name: "Check file existence"
                 uses: andstor/file-existence-action@v1
@@ -125,12 +132,15 @@ jobs:
 
             -   name: Install redis bundle
                 run: |
-                    composer require numberninecms/redis --no-scripts --ignore-platform-reqs
+                    composer require numberninecms/redis --no-scripts --ignore-platform-reqs --with-all-dependencies
                     php bin/console cache:clear
                     composer dumpautoload
 
             -   name: Build Docker image
+                run: docker build --no-cache -t numberninecms/installer:0.3 -f ./build/Dockerfile .
+
+            -   name: Push Docker image
+                if: github.ref == 'refs/heads/master'
                 run: |
                     echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-                    docker build --no-cache -t numberninecms/installer:0.3 -f ./build/Dockerfile .
-                    docker push numberninecms/installer
+                    docker push numberninecms/installer:0.3
