@@ -7,17 +7,17 @@ on:
         paths-ignore:
             - '**/README.md'
     schedule:
-        -   cron: '0 23 * * 4' # Once a week at 23:00 on Monday
+        -   cron: '0 23 * * 4' # Once a week at 23:00 on Thursday
 
 jobs:
-    build:
-        name: Build installer
+    build_0_2:
+        name: Build installer 0.2.x
 
         runs-on: ubuntu-20.04
 
         strategy:
             matrix:
-                php: [ 8.0 ]
+                php: [ '8.0' ]
 
         steps:
             -   uses: actions/checkout@v2
@@ -30,14 +30,14 @@ jobs:
                 with:
                     php-version: ${{ matrix.php }}
                     extensions: dom, curl, libxml, mbstring, zip, redis
-                    tools: composer:v2
+                    tools: composer:v2, symfony
                     coverage: none
 
             -   name: Install project
                 run: |
                     rm LICENSE
                     rm README.md
-                    composer create-project symfony/website-skeleton newproject
+                    symfony new newproject --full --no-git --version="5.3"
                     cd newproject
                     cp -Rp . ../
                     cd ..
@@ -45,7 +45,8 @@ jobs:
                     composer config extra.symfony.allow-contrib true
                     composer config minimum-stability dev
                     composer config prefer-stable true
-                    composer require numberninecms/numbernine --ignore-platform-reqs
+                    composer require --dev symfony/maker-bundle:dev-main
+                    composer require numberninecms/numbernine:^0.2 --ignore-platform-reqs
 
             -   name: "Check file existence"
                 uses: andstor/file-existence-action@v1
@@ -56,7 +57,7 @@ jobs:
             -   name: Create .env.local file
                 run: |
                     echo "APP_NAME=numbernine" > .env.local
-                    echo "DATABASE_URL=mysql://user:user@mysql:3306/numbernine_app?serverVersion=5.7" >> .env.local
+                    echo "DATABASE_URL=mysql://user:user@mysql:3306/numbernine_app?serverVersion=8.0" >> .env.local
                     echo "REDIS_URL=redis://redis:6379" >> .env.local
                     echo "MAILER_DSN=smtp://maildev:25" >> .env.local
 
@@ -69,5 +70,67 @@ jobs:
             -   name: Build Docker image
                 run: |
                     echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-                    docker build --no-cache -t numberninecms/installer:latest -f ./build/Dockerfile .
+                    docker build --no-cache -t numberninecms/installer:0.2 -t numberninecms/installer:latest -f ./build/Dockerfile .
+                    docker push numberninecms/installer
+
+    build_0_3:
+        name: Build installer 0.3.x
+
+        runs-on: ubuntu-20.04
+
+        strategy:
+            matrix:
+                php: [ '8.1' ]
+
+        steps:
+            -   uses: actions/checkout@v2
+
+            -   uses: FranzDiebold/github-env-vars-action@v2
+
+            -   name: Setup PHP
+                id: setup-php
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: ${{ matrix.php }}
+                    extensions: dom, curl, libxml, mbstring, zip, redis
+                    tools: composer:v2, symfony
+                    coverage: none
+
+            -   name: Install project
+                run: |
+                    rm LICENSE
+                    rm README.md
+                    symfony new newproject --full --no-git --version="5.4.x-dev"
+                    cd newproject
+                    cp -Rp . ../
+                    cd ..
+                    rm -rf newproject
+                    composer config extra.symfony.allow-contrib true
+                    composer config minimum-stability dev
+                    composer config prefer-stable true
+                    composer require numberninecms/cms:^0.3 numberninecms/chapterone:^0.3 --ignore-platform-reqs
+
+            -   name: "Check file existence"
+                uses: andstor/file-existence-action@v1
+                with:
+                    files: "docker-compose.yml, docker/"
+                    allow_failure: true
+
+            -   name: Create .env.local file
+                run: |
+                    echo "APP_NAME=numbernine" > .env.local
+                    echo "DATABASE_URL=mysql://user:user@mysql:3306/numbernine_app?serverVersion=8.0" >> .env.local
+                    echo "REDIS_URL=redis://redis:6379" >> .env.local
+                    echo "MAILER_DSN=smtp://maildev:25" >> .env.local
+
+            -   name: Install redis bundle
+                run: |
+                    composer require numberninecms/redis --no-scripts --ignore-platform-reqs
+                    php bin/console cache:clear
+                    composer dumpautoload
+
+            -   name: Build Docker image
+                run: |
+                    echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+                    docker build --no-cache -t numberninecms/installer:0.3 -f ./build/Dockerfile .
                     docker push numberninecms/installer
