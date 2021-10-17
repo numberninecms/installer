@@ -14,7 +14,7 @@ on:
 
 jobs:
     build:
-        name: Build installer
+        name: Build
 
         runs-on: ubuntu-20.04
 
@@ -45,6 +45,8 @@ jobs:
                     cp -Rp . ../
                     cd ..
                     rm -rf newproject
+                    rm composer.lock
+                    rm docker-compose*.yaml
                     composer config extra.symfony.allow-contrib true
                     composer config minimum-stability dev
                     composer config prefer-stable true
@@ -71,6 +73,70 @@ jobs:
 
             -   name: Build Docker image
                 run: docker build --no-cache -t numberninecms/installer:0.3 -t numberninecms/installer:latest -f ./build/Dockerfile .
+
+            -   name: Save Docker image as artifact
+                run: docker save -o /tmp/installer.tar numberninecms/installer:0.3 numberninecms/installer:latest
+
+            -   name: Upload artifact
+                uses: actions/upload-artifact@v2
+                with:
+                    name: installer
+                    path: /tmp/installer.tar
+
+    test:
+        name: Test
+
+        needs: build
+
+        runs-on: ubuntu-20.04
+
+        strategy:
+            matrix:
+                php: [ '8.1' ]
+
+        steps:
+            -   name: Download artifact
+                uses: actions/download-artifact@v2
+                with:
+                    name: installer
+                    path: /tmp/installer.tar
+
+            -   name: Load Docker image
+                run: |
+                    docker load --input /tmp/installer.tar
+                    docker image ls -a
+
+            -   name: Create a new project
+                run: |
+                    docker run --rm -t -e HOST_PWD=$PWD \
+                        -v $PWD:/srv/app -v /var/run/docker.sock:/var/run/docker.sock \
+                        numberninecms/installer:latest testproject -v
+
+            -   name: Check that website is up and running
+                run: wget --spider --no-check-certificate https://testproject.localhost/
+
+    deploy:
+        name: Deploy
+
+        needs: [build, test]
+
+        runs-on: ubuntu-20.04
+
+        strategy:
+            matrix:
+                php: [ '8.1' ]
+
+        steps:
+            -   name: Download artifact
+                uses: actions/download-artifact@v2
+                with:
+                    name: installer
+                    path: /tmp/installer.tar
+
+            -   name: Load Docker image
+                run: |
+                    docker load --input /tmp/installer.tar
+                    docker image ls -a
 
             -   name: Push Docker image
                 if: github.ref == 'refs/heads/master'
