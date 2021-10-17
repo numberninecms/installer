@@ -50,7 +50,7 @@ jobs:
                     composer config extra.symfony.allow-contrib true
                     composer config minimum-stability dev
                     composer config prefer-stable true
-                    composer require numberninecms/cms:^0.3 numberninecms/chapterone:^0.3 --ignore-platform-reqs --with-all-dependencies
+                    composer require numberninecms/cms:^0.3.5 numberninecms/chapterone:^0.3 --ignore-platform-reqs --with-all-dependencies
 
             -   name: "Check file existence"
                 uses: andstor/file-existence-action@v1
