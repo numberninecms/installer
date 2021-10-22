@@ -46,7 +46,7 @@ jobs:
                     cd ..
                     rm -rf newproject
                     rm composer.lock
-                    rm docker-compose*.yaml
+                    rm docker-compose*
                     composer config extra.symfony.allow-contrib true
                     composer config minimum-stability dev
                     composer config prefer-stable true
