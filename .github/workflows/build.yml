@@ -6,11 +6,13 @@ on:
             - master
         paths-ignore:
             - '**/README.md'
+            - '**/LICENSE'
     pull_request:
         branches:
             - master
         paths-ignore:
             - '**/README.md'
+            - '**/LICENSE'
     schedule:
         -   cron: '0 23 * * 4' # Once a week at 23:00 on Thursday
 
