@@ -1,6 +1,5 @@
 /.idea
 /.github
-/assets/
 /build/*
 !/build/docker-entrypoint.sh
 .git

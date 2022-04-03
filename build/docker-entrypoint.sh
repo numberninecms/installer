@@ -9,7 +9,7 @@ green='\033[32m'
 clr='\033[0m'
 verbose=0
 
-function parse_options {
+parse_options() {
     while [[ "$#" -gt 0 ]]; do
         case $1 in
             -v|--verbose) verbose=1 ;;
@@ -18,7 +18,7 @@ function parse_options {
     done
 }
 
-function spinner() {
+spinner() {
   chars="◐◓◑◒"
 
   while :; do
@@ -29,7 +29,7 @@ function spinner() {
   done
 }
 
-function execute {
+execute() {
     if [ $verbose -eq 1 ] ; then
         "$@"
     else
@@ -37,7 +37,7 @@ function execute {
     fi
 }
 
-function set_app_name {
+set_app_name() {
   APP_NAME="numbernine"
 
   echo "$1" | grep -Pq '^(?!-+)[\w_-]+$'
@@ -48,7 +48,7 @@ function set_app_name {
   fi
 }
 
-function set_free_port {
+set_free_port() {
   FREE_PORT_SITE=$(comm -23 <({ echo 443; seq 8080 8100; }) <(nmap --min-hostgroup 100 -p 443,8080-8100 -sS -n -T4 host.docker.internal | grep 'open' | awk '{print $1}' | cut -d'/' -f1) | head -n 1)
   FREE_PORT_MAILDEV=$(comm -23 <(seq 8010 8100) <(nmap --min-hostgroup 100 -p 8010-8100 -sS -n -T4 host.docker.internal | grep 'open' | awk '{print $1}' | cut -d'/' -f1) | head -n 1)
   sudo -u appuser sed -i "s/443:443/$FREE_PORT_SITE:443/g" docker-compose.yml
@@ -61,7 +61,7 @@ function set_free_port {
   fi
 }
 
-function install {
+install() {
   mkdir -p /srv/app/$APP_NAME
 
   if [ -z "$(ls -A /srv/app/$APP_NAME/)" ]; then
@@ -99,7 +99,7 @@ function install {
   docker-compose exec php bin/console cache:clear
 }
 
-function main {
+main() {
   parse_options "$@"
   set_app_name "$@"
 
