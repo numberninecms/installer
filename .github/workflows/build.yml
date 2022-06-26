@@ -44,7 +44,7 @@ jobs:
                 run: |
                     rm LICENSE
                     rm README.md
-                    symfony new newproject --full --no-git --version="6.0"
+                    symfony new newproject --full --no-git --version="6.1"
                     cd newproject
                     cp -Rp . ../
                     cd ..
@@ -65,7 +65,7 @@ jobs:
             -   name: Create .env.local file
                 run: |
                     echo "APP_NAME=numbernine" > .env.local
-                    echo "DATABASE_URL=mysql://user:user@mysql:3306/numbernine_app?serverVersion=8.0" >> .env.local
+                    echo "DATABASE_URL=mysql://user:user@mysql:3306/numbernine_app?serverVersion=8.0&charset=utf8mb4" >> .env.local
                     echo "REDIS_URL=redis://redis:6379" >> .env.local
                     echo "MAILER_DSN=smtp://maildev:25" >> .env.local
 
