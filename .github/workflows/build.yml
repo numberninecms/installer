@@ -44,7 +44,9 @@ jobs:
                 run: |
                     rm LICENSE
                     rm README.md
-                    symfony new newproject --full --no-git --version="6.1"
+                    git config --global user.email "no-reply@numberninecms.com"
+                    git config --global user.name "NumberNine CMS"
+                    symfony new newproject --webapp --version="6.1"
                     cd newproject
                     cp -Rp . ../
                     cd ..
