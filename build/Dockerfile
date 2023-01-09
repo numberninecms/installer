@@ -1,21 +1,19 @@
 FROM alpine
 
-RUN apk add --no-cache --upgrade sudo openssl bash ncurses grep nmap
-
 COPY --from=docker:latest /usr/local/bin/docker /usr/bin/docker
-COPY --from=docker/compose:latest /usr/local/bin/docker-compose /usr/bin/docker-compose
-
 COPY build/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
-RUN chmod +x /usr/local/bin/docker-entrypoint
 
-RUN addgroup -g 1000 -S appgroup && adduser -u 1000 -s /bin/sh -H -D -S appuser -G appgroup
+RUN set -eux; \
+    apk add --no-cache --upgrade sudo docker-cli-compose bash acl ncurses grep nmap; \
+    chmod +x /usr/local/bin/docker-entrypoint; \
+    mkdir /srv/files /app; \
+    addgroup -g 1000 -S appgroup; \
+    adduser -u 1000 -s /bin/sh -H -D -S appuser -G appgroup; \
+    adduser -u 82 -D -S -G www-data www-data; \
+    rm -rf build;
 
-WORKDIR /srv/files
+COPY . /srv/files/
 
-COPY . .
-
-RUN rm -rf build
-
-WORKDIR /srv/app
+WORKDIR /app
 
 ENTRYPOINT ["docker-entrypoint"]

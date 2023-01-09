@@ -23,14 +23,14 @@ jobs:
     build:
         name: Build
 
-        runs-on: ubuntu-20.04
+        runs-on: ubuntu-latest
 
         strategy:
             matrix:
                 php: [ '8.1' ]
 
         steps:
-            -   uses: actions/checkout@v2
+            -   uses: actions/checkout@v3
 
             -   uses: FranzDiebold/github-env-vars-action@v2
 
@@ -49,7 +49,7 @@ jobs:
                     rm README.md
                     git config --global user.email "no-reply@numberninecms.com"
                     git config --global user.name "NumberNine CMS"
-                    symfony new newproject --webapp --version="6.1"
+                    symfony new newproject --webapp --version="6.2"
                     cd newproject
                     cp -Rp . ../
                     cd ..
@@ -59,17 +59,20 @@ jobs:
                     composer config extra.symfony.allow-contrib true
                     composer config minimum-stability dev
                     composer config prefer-stable true
-                    composer require numberninecms/cms:^0.4 numberninecms/chapterone:^0.4 --ignore-platform-reqs --with-all-dependencies
+                    composer require numberninecms/cms:^0.5 numberninecms/chapterone:^0.5 --ignore-platform-reqs --with-all-dependencies
+                    cp vendor/numberninecms/cms/install/docker-compose.yml docker-compose.yml
+                    cp vendor/numberninecms/cms/install/Makefile Makefile
 
             -   name: "Check file existence"
-                uses: andstor/file-existence-action@v1
+                uses: andstor/file-existence-action@v2
                 with:
                     files: "docker-compose.yml, docker/"
-                    allow_failure: true
+                    fail: true
 
-            -   name: Create .env.local file
+            -   name: Create environment variables
                 run: |
-                    echo "APP_NAME=numbernine" > .env.local
+                    echo "APP_NAME=numbernine" >> .env
+                    echo "PROJECT_DIR=${PWD##*/}" >> .env
                     echo "DATABASE_URL=mysql://user:user@mysql:3306/numbernine_app?serverVersion=8.0&charset=utf8mb4" >> .env.local
                     echo "REDIS_URL=redis://redis:6379" >> .env.local
                     echo "MAILER_DSN=smtp://maildev:25" >> .env.local
@@ -81,13 +84,13 @@ jobs:
                     composer dumpautoload
 
             -   name: Build Docker image
-                run: docker build --no-cache -t numberninecms/installer:0.4 -t numberninecms/installer:latest -f ./build/Dockerfile .
+                run: docker build --no-cache -t numberninecms/installer:0.5 -t numberninecms/installer:latest -f ./build/Dockerfile .
 
             -   name: Save Docker image as artifact
-                run: docker save -o /tmp/installer.tar numberninecms/installer:0.4 numberninecms/installer:latest
+                run: docker save -o /tmp/installer.tar numberninecms/installer:0.5 numberninecms/installer:latest
 
             -   name: Upload artifact
-                uses: actions/upload-artifact@v2
+                uses: actions/upload-artifact@v3
                 with:
                     name: installer
                     path: /tmp/installer.tar
@@ -97,7 +100,7 @@ jobs:
 
         needs: build
 
-        runs-on: ubuntu-20.04
+        runs-on: ubuntu-latest
 
         strategy:
             matrix:
@@ -105,7 +108,7 @@ jobs:
 
         steps:
             -   name: Download artifact
-                uses: actions/download-artifact@v2
+                uses: actions/download-artifact@v3
                 with:
                     name: installer
                     path: /tmp
@@ -117,8 +120,8 @@ jobs:
 
             -   name: Create a new project
                 run: |
-                    docker run --rm -t -e HOST_PWD=$PWD \
-                        -v $PWD:/srv/app -v /var/run/docker.sock:/var/run/docker.sock \
+                    docker run --rm -t -e HOST_PWD="$PWD" \
+                        -v "$PWD":/app -v /var/run/docker.sock:/var/run/docker.sock \
                         numberninecms/installer:latest testproject -v
 
             -   name: Check that website is up and running
@@ -129,7 +132,7 @@ jobs:
 
         needs: [build, test]
 
-        runs-on: ubuntu-20.04
+        runs-on: ubuntu-latest
 
         strategy:
             matrix:
@@ -137,7 +140,7 @@ jobs:
 
         steps:
             -   name: Download artifact
-                uses: actions/download-artifact@v2
+                uses: actions/download-artifact@v3
                 with:
                     name: installer
                     path: /tmp
@@ -151,5 +154,5 @@ jobs:
                 if: github.ref == 'refs/heads/master'
                 run: |
                     echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-                    docker push numberninecms/installer:0.4
+                    docker push numberninecms/installer:0.5
                     docker push numberninecms/installer:latest

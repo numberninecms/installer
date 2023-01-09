@@ -50,53 +50,49 @@ set_app_name() {
 
 set_free_port() {
   FREE_PORT_SITE=$(comm -23 <({ echo 443; seq 8080 8100; }) <(nmap --min-hostgroup 100 -p 443,8080-8100 -sS -n -T4 host.docker.internal | grep 'open' | awk '{print $1}' | cut -d'/' -f1) | head -n 1)
-  FREE_PORT_MAILDEV=$(comm -23 <(seq 8010 8100) <(nmap --min-hostgroup 100 -p 8010-8100 -sS -n -T4 host.docker.internal | grep 'open' | awk '{print $1}' | cut -d'/' -f1) | head -n 1)
   sudo -u appuser sed -i "s/443:443/$FREE_PORT_SITE:443/g" docker-compose.yml
-  sudo -u appuser sed -i "s/8010:80/$FREE_PORT_MAILDEV:80/g" docker-compose.yml
 
   URL_SITE=https://$APP_NAME.localhost
+  URL_MAIL=https://$APP_NAME-mail.localhost
 
-  if [ $FREE_PORT_SITE -ne 443 ]; then
+  if [ "$FREE_PORT_SITE" -ne 443 ]; then
     URL_SITE=$URL_SITE:$FREE_PORT_SITE
+    URL_MAIL=$URL_MAIL:$FREE_PORT_SITE
   fi
 }
 
 install() {
-  mkdir -p /srv/app/$APP_NAME
+  mkdir -p /app/"$APP_NAME"
 
-  if [ -z "$(ls -A /srv/app/$APP_NAME/)" ]; then
-    cd /srv/files/
-    cp -R . /srv/app/$APP_NAME/
+  if [ -z "$(ls -A /app/"$APP_NAME"/)" ]; then
+    cd /srv/files/ || return 1
+    cp -R . /app/"$APP_NAME"/
 
-    cd /srv/app/$APP_NAME/
+    cd /app/"$APP_NAME"/ || return 1
 
-    sed -i "s@APP_NAME=numbernine@APP_NAME=$APP_NAME@g" .env.local
-    sed -i "s@localhost@$APP_NAME.localhost@g" ./docker/nginx/conf.d/default.conf
-    sed -i "s@localhost@$APP_NAME.localhost@g" docker-compose.yml
+    sed -i "s@APP_NAME=numbernine@APP_NAME=$APP_NAME@g" .env
+    sed -i "/PROJECT_DIR=/d" .env
+    echo "PROJECT_DIR=$APP_NAME" >> .env
     sed -i "s@- ./@- $HOST_PWD/$APP_NAME/@g" docker-compose.yml
-
-    mkdir -p docker/nginx/cert
-    openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 \
-      -subj "/C=US/ST=Denial/L=Springfield/O=Dis/CN=$APP_NAME.localhost" \
-      -keyout ./docker/nginx/cert/$APP_NAME.localhost.key \
-      -out ./docker/nginx/cert/$APP_NAME.localhost.crt
   fi
 
-  chown -R appuser:appgroup /srv/app/$APP_NAME
-  cd /srv/app/$APP_NAME/
+  chown -R appuser:appgroup /app/"$APP_NAME"
+  cd /app/"$APP_NAME"/ || return 1
 
   set_free_port
 
-  docker-compose up -d
-  sudo -u appuser sed -i "s@- $HOST_PWD/$APP_NAME/@- ./@g" docker-compose.yml
+  docker compose up -d
+  chown -R appuser:appgroup .
   sudo -u appuser rm -rf var/cache && sudo -u appuser mkdir -pm 0755 var/cache
-  docker-compose exec php php -r "set_time_limit(30); for(;;) { if(@fsockopen('mysql:'.(3306))) { break; } }"
-  docker-compose exec php bin/console doctrine:database:drop --if-exists --force
-  docker-compose exec php bin/console doctrine:database:create --if-not-exists
-  docker-compose exec php bin/console doctrine:migrations:diff --no-interaction
-  docker-compose exec php bin/console doctrine:migrations:migrate --no-interaction
-  docker-compose exec php bin/console doctrine:fixtures:load --no-interaction
-  docker-compose exec php bin/console cache:clear
+  setfacl -R -m u:appuser:rwX -m u:www-data:rwX -m u:82:rwX .
+  setfacl -dR -m u:appuser:rwX -m u:www-data:rwX -m u:82:rwX .
+  docker compose exec php php -r "set_time_limit(30); for(;;) { if(@fsockopen('mysql:'.(3306))) { break; } }"
+  docker compose exec php bin/console doctrine:database:drop --if-exists --force --no-interaction
+  docker compose exec php bin/console doctrine:database:create --if-not-exists --no-interaction
+  docker compose exec php bin/console doctrine:migrations:diff --no-interaction
+  docker compose exec php bin/console doctrine:migrations:migrate --no-interaction
+  docker compose exec php bin/console doctrine:fixtures:load --no-interaction
+  docker compose exec php bin/console cache:clear --no-interaction
 }
 
 main() {
@@ -127,13 +123,15 @@ main() {
     echo -e "$info What's next?                                                                                                           $clr"
     echo -e "$info                                                                                                                        $clr"
     echo ''
-    echo -e "  * ${blue}Read$clr the documentation at ${yellow}https://numberninecms.github.io/$clr"
+    echo -e "  * ${blue}Read$clr the documentation at ${yellow}https://numberninecms.com/$clr"
     echo ''
-    echo -e "  * ${blue}Create$clr an admin user with ${yellow}cd $APP_NAME && docker-compose exec php bin/console numbernine:user:create --admin$clr"
+    echo -e "  * ${blue}Create$clr an admin user with ${yellow}cd $APP_NAME && docker compose exec php bin/console numbernine:user:create --admin$clr"
     echo ''
-    echo -e "  * ${blue}Go$clr to ${yellow}$URL_SITE/admin ${clr}and login with your newly created user"
+    echo -e "  * ${blue}Create$clr default pages using the newly created admin ${yellow}docker compose exec php bin/console numbernine:make:default-pages --username=admin$clr"
     echo ''
-    echo -e "  * ${blue}Go$clr to ${yellow}http://localhost:$FREE_PORT_MAILDEV/$clr to check mails sent by the app"
+    echo -e "  * ${blue}Go$clr to ${yellow}$URL_SITE/admin$clr and login with your newly created user"
+    echo ''
+    echo -e "  * ${blue}Go$clr to ${yellow}$URL_MAIL$clr to check mails sent by the app"
   else
     if [ $verbose -eq 0 ]; then
       echo ''
@@ -142,11 +140,13 @@ main() {
       echo -e "$error An error occurred during installation. What to do next?                                                                $clr"
       echo -e "$error                                                                                                                        $clr"
       echo ''
-      echo -e "  * ${blue}Remove$clr the Docker environment with ${yellow}cd $APP_NAME && docker-compose down$clr"
+      echo -e "  * ${blue}Remove$clr the Docker environment with ${yellow}cd $APP_NAME && docker compose down --remove-orphans -v$clr"
       echo ''
       echo -e "  * ${blue}Remove$clr the project with ${yellow}rm -rf $HOST_PWD/$APP_NAME$clr"
       echo ''
       echo -e "  * ${blue}Relaunch$clr installation with ${yellow}-v${clr} or ${yellow}--verbose${clr} at the end of the command line"
+      echo ''
+      echo -e "  * Alternatively, try a manual installation. Check the documentation at ${yellow}https://numberninecms.com$clr"
     fi
   fi
 }

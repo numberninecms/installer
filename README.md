@@ -15,8 +15,8 @@ Docker development environment.
 To create a new NumberNine project, simply run this one-liner:
 
 ```bash
-docker run --rm --pull=always -t -e HOST_PWD="$PWD" -v "$PWD":/srv/app \
-    -v /var/run/docker.sock:/var/run/docker.sock \
+docker run --rm --pull=always -t -e HOST_PWD="$PWD" \
+     -v "$PWD":/app -v /var/run/docker.sock:/var/run/docker.sock \
     numberninecms/installer myproject
 ```
 
